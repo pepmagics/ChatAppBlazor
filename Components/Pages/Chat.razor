@@ -1,0 +1,64 @@
+﻿@page "/chat"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@inject HttpClient Http
+
+<h3>Chat</h3>
+
+<div class="message-container">
+    @foreach (var message in messages)
+    {
+        <div class="message">
+            <strong>@message.SenderUsername:</strong> @message.Content
+        </div>
+    }
+</div>
+
+<div class="input-container">
+    <input @bind="newMessage" @onkeyup="@HandleKeyUp" placeholder="Type a message..." />
+    <button @onclick="SendMessage">Send</button>
+</div>
+
+@code {
+    private List<Message> messages = new List<Message>();
+    private string newMessage = "";
+    private HubConnection hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/chathub"))
+            .Build();
+
+        hubConnection.On<string, string>("ReceiveMessage", (user, message) =>
+        {
+            messages.Add(new Message { SenderUsername = user, Content = message });
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrEmpty(newMessage))
+        {
+            await hubConnection.SendAsync("SendMessage", "User", newMessage);
+            newMessage = "";
+        }
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+
+    private class Message
+    {
+        public string SenderUsername { get; set; }
+        public string Content { get; set; }
+    }
+}
