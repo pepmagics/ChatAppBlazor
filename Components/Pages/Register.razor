@@ -1,7 +1,5 @@
 ﻿@page "/register"
-@using Microsoft.AspNetCore.Identity
-@inject UserManager<ApplicationUser> UserManager
-@inject SignInManager<ApplicationUser> SignInManager
+@inject HttpClient Http
 @inject NavigationManager NavigationManager
 
 <h3>Register</h3>
@@ -30,21 +28,15 @@
 
     private async Task HandleRegister()
     {
-        var user = new ApplicationUser { UserName = registerModel.Username, Email = registerModel.Email };
-        var result = await UserManager.CreateAsync(user, registerModel.Password);
-
-        if (result.Succeeded)
+        var response = await Http.PostAsJsonAsync("api/register/register", registerModel);
+        if (response.IsSuccessStatusCode)
         {
-            await SignInManager.SignInAsync(user, isPersistent: false);
-            NavigationManager.NavigateTo("/");
+            NavigationManager.NavigateTo("/login");
         }
         else
         {
-            foreach (var error in result.Errors)
-            {
-                // Hataları işleyin
-                Console.WriteLine(error.Description);
-            }
+            // Hataları işleyin
+            Console.WriteLine("Registration failed.");
         }
     }
 

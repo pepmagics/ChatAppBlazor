@@ -1,6 +1,5 @@
 ﻿@page "/login"
-@using Microsoft.AspNetCore.Identity
-@inject SignInManager<ApplicationUser> SignInManager
+@inject HttpClient Http
 @inject NavigationManager NavigationManager
 
 <h3>Login</h3>
@@ -25,10 +24,11 @@
 
     private async Task HandleLogin()
     {
-        var result = await SignInManager.PasswordSignInAsync(loginModel.Username, loginModel.Password, isPersistent: false, lockoutOnFailure: false);
-
-        if (result.Succeeded)
+        var response = await Http.PostAsJsonAsync("api/register/login", loginModel);
+        if (response.IsSuccessStatusCode)
         {
+            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+            // JWT token'ı local storage veya session storage'da saklayabilirsiniz
             NavigationManager.NavigateTo("/");
         }
         else
@@ -42,5 +42,10 @@
     {
         public string Username { get; set; }
         public string Password { get; set; }
+    }
+
+    public class AuthResult
+    {
+        public string Token { get; set; }
     }
 }
