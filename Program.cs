@@ -1,7 +1,11 @@
 using ChatAppBlazor.Components;
 using ChatAppBlazor.Data;
 using ChatAppBlazor.Hubs;
+using ChatAppBlazor.Models;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,8 +17,19 @@ builder.Services.AddRazorComponents()
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Add Identity
+builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+
 // Add SignalR
 builder.Services.AddSignalR();
+
+// Add HttpClient
+builder.Services.AddScoped<HttpClient>(s =>
+{
+    var navigationManager = s.GetRequiredService<NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
+});
 
 // Add controllers
 builder.Services.AddControllers();

@@ -21,6 +21,7 @@ namespace ChatAppBlazor.Controllers
         [HttpPost]
         public async Task<IActionResult> SendMessage(Message message)
         {
+            message.Timestamp = DateTime.Now; // Ensure timestamp is set
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
             return Ok(message);

@@ -1,7 +1,12 @@
 ﻿@page "/chat"
 @using Microsoft.AspNetCore.SignalR.Client
-@inject NavigationManager Navigation
+@using ChatAppBlazor.Models
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Identity
 @inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
 
 <h3>Chat</h3>
 
@@ -23,18 +28,22 @@
     private List<Message> messages = new List<Message>();
     private string newMessage = "";
     private HubConnection hubConnection;
+    private ApplicationUser currentUser;
 
     protected override async Task OnInitializedAsync()
     {
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/chathub"))
+            .WithUrl(NavigationManager.ToAbsoluteUri("/chathub"))
             .Build();
 
         hubConnection.On<string, string>("ReceiveMessage", (user, message) =>
         {
+            var encodedMsg = $"{user}: {message}";
             messages.Add(new Message { SenderUsername = user, Content = message });
             StateHasChanged();
         });
+
+        currentUser = await UserManager.GetUserAsync(SignInManager.Context.User);
 
         await hubConnection.StartAsync();
     }
@@ -43,8 +52,32 @@
     {
         if (!string.IsNullOrEmpty(newMessage))
         {
-            await hubConnection.SendAsync("SendMessage", "User", newMessage);
-            newMessage = "";
+            var message = new Message
+                {
+                    SenderId = currentUser.Id, // Kullanıcının kimliği
+                    SenderUsername = currentUser.UserName, // Kullanıcı adı
+                    Content = newMessage,
+                    Timestamp = DateTime.Now
+                };
+
+            try
+            {
+                // Mesajı sunucuya gönder
+                var response = await Http.PostAsJsonAsync("api/message", message);
+                if (response.IsSuccessStatusCode)
+                {
+                    await hubConnection.SendAsync("SendMessage", currentUser.UserName, newMessage);
+                    newMessage = "";
+                }
+                else
+                {
+                    Console.WriteLine("Message sending failed: " + response.ReasonPhrase);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception occurred while sending message: " + ex.Message);
+            }
         }
     }
 
@@ -54,11 +87,5 @@
         {
             await SendMessage();
         }
-    }
-
-    private class Message
-    {
-        public string SenderUsername { get; set; }
-        public string Content { get; set; }
     }
 }
